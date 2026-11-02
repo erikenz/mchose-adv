@@ -3,6 +3,7 @@
  *
  * Supported features: SOCD, RS (rapid switch / rappy-snappy), DKS, MT, TGL.
  * Tested on the MCHOSE Ace 68 -III (USB 3837:3003).
+ * Also seen working: MCHOSE Ace 60 Pro (USB 41e4:2103), SOCD on W/A/S/D.
  *
  * The problem
  * -----------
@@ -61,6 +62,14 @@
 #include <sys/ioctl.h>
 #include <sys/select.h>
 
+/* Keyboards whose interface 2 carries the advanced-key report. */
+static const struct { unsigned short vendor, product; } known[] = {
+    { 0x3837, 0x3003 },     /* Ace 68 -III */
+    { 0x41E4, 0x2103 },     /* Ace 60 Pro  */
+};
+#define N_KNOWN (sizeof known / sizeof known[0])
+
+/* Identity of the virtual keyboard we create. */
 #define VENDOR_ID   0x3837
 #define PRODUCT_ID  0x3003
 #define REPORT_ID   0x01
@@ -144,9 +153,6 @@ static int find_iface2(char *out, size_t outlen)
     DIR *d = opendir("/dev");
     if (!d) return -1;
 
-    char want[64];
-    snprintf(want, sizeof want, "HID_ID=0003:%08X:%08X", VENDOR_ID, PRODUCT_ID);
-
     struct dirent *de;
     int found = -1;
     while ((de = readdir(d))) {
@@ -156,7 +162,13 @@ static int find_iface2(char *out, size_t outlen)
         snprintf(upath, sizeof upath, "/sys/class/hidraw/%s/device/uevent", de->d_name);
         char *ue = slurp(upath);
         if (!ue) continue;
-        int match = strstr(ue, want) != NULL;
+        int match = 0;
+        for (size_t i = 0; i < N_KNOWN && !match; i++) {
+            char want[64];
+            snprintf(want, sizeof want, "HID_ID=0003:%08X:%08X",
+                     known[i].vendor, known[i].product);
+            match = strstr(ue, want) != NULL;
+        }
         free(ue);
         if (!match) continue;
 
@@ -296,8 +308,8 @@ static void usage(const char *argv0)
         "  -h, --help        this text\n"
         "\n"
         "With no device argument, the correct hidraw node is discovered\n"
-        "automatically by USB id %04X:%04X and interface number 2.\n",
-        argv0, DEFAULT_RETRY_SEC, VENDOR_ID, PRODUCT_ID);
+        "automatically (known MCHOSE USB ids, interface number 2).\n",
+        argv0, DEFAULT_RETRY_SEC);
 }
 
 int main(int argc, char **argv)
@@ -339,8 +351,8 @@ int main(int argc, char **argv)
             if (find_iface2(auto_path, sizeof auto_path) == 0) {
                 path = auto_path;
             } else if (!stop) {
-                logmsg("keyboard not found (looking for %04X:%04X interface 2); "
-                       "retrying in %ds", VENDOR_ID, PRODUCT_ID, retry_sec);
+                logmsg("keyboard not found (known MCHOSE id, interface 2); "
+                       "retrying in %ds", retry_sec);
                 sleep(retry_sec);
                 continue;
             }
