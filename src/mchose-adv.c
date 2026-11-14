@@ -70,25 +70,29 @@
 #define MAX_USAGE   (BITMAP_LEN * 8)
 #define DEFAULT_RETRY_SEC 2
 
-/* Standard HID keyboard usage -> evdev key code (the same table Linux's
- * drivers/hid/hid-input.c uses). */
+/* Standard HID keyboard usage -> evdev key code (same mapping as Linux's
+ * drivers/hid/hid-input.c for usages 0x00-0x77). Named constants so the
+ * kernel headers guarantee the values. */
 static const unsigned char hid2ev[256] = {
-     0,   0,   0,   0,  30,  48,  46,  32,  18,  33,  34,  35,  23,  36,  37,  38,
-    50,  49,  24,  25,  16,  19,  31,  20,  22,  47,  17,  45,  21,  44,   2,   3,
-     4,   5,   6,   7,   8,   9,  10,  11,  28,   1,  14,  15,  57,  12,  13,  26,
-    27,  43,  43,  39,  40,  41,  51,  52,  53,  58,  59,  60,  61,  62,  63,  64,
-    65,  66,  67,  68,  69,  70,  71,  72,  73,  74,  75,  76,  77,  78,  79,  80,
-    81,  82,  83,  84,  85,  86,  87,  88,  89,  90,  91,  92,  93,  94,  95,  96,
-    97,  98,  99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112,
-   113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128,
-   129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144,
-   145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160,
-   161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176,
-   177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192,
-   193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208,
-   209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224,
-   225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240,
-   241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255
+    [0x04] = KEY_A, KEY_B, KEY_C, KEY_D, KEY_E, KEY_F, KEY_G, KEY_H, KEY_I,
+    KEY_J, KEY_K, KEY_L, KEY_M, KEY_N, KEY_O, KEY_P, KEY_Q, KEY_R, KEY_S,
+    KEY_T, KEY_U, KEY_V, KEY_W, KEY_X, KEY_Y, KEY_Z,
+    [0x1E] = KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9, KEY_0,
+    [0x28] = KEY_ENTER, KEY_ESC, KEY_BACKSPACE, KEY_TAB, KEY_SPACE, KEY_MINUS,
+    KEY_EQUAL, KEY_LEFTBRACE, KEY_RIGHTBRACE, KEY_BACKSLASH, KEY_BACKSLASH,
+    KEY_SEMICOLON, KEY_APOSTROPHE, KEY_GRAVE, KEY_COMMA, KEY_DOT, KEY_SLASH,
+    KEY_CAPSLOCK,
+    [0x3A] = KEY_F1, KEY_F2, KEY_F3, KEY_F4, KEY_F5, KEY_F6, KEY_F7, KEY_F8,
+    KEY_F9, KEY_F10, KEY_F11, KEY_F12,
+    [0x46] = KEY_SYSRQ, KEY_SCROLLLOCK, KEY_PAUSE, KEY_INSERT, KEY_HOME,
+    KEY_PAGEUP, KEY_DELETE, KEY_END, KEY_PAGEDOWN, KEY_RIGHT, KEY_LEFT,
+    KEY_DOWN, KEY_UP,
+    [0x53] = KEY_NUMLOCK, KEY_KPSLASH, KEY_KPASTERISK, KEY_KPMINUS, KEY_KPPLUS,
+    KEY_KPENTER, KEY_KP1, KEY_KP2, KEY_KP3, KEY_KP4, KEY_KP5, KEY_KP6, KEY_KP7,
+    KEY_KP8, KEY_KP9, KEY_KP0, KEY_KPDOT, KEY_102ND, KEY_COMPOSE, KEY_POWER,
+    KEY_KPEQUAL, KEY_F13, KEY_F14, KEY_F15, KEY_F16, KEY_F17, KEY_F18,
+    KEY_F19, KEY_F20, KEY_F21, KEY_F22, KEY_F23, KEY_F24, KEY_OPEN, KEY_HELP,
+    KEY_PROPS, KEY_FRONT,
 };
 
 static volatile sig_atomic_t stop;
@@ -162,7 +166,7 @@ static int find_iface2(char *out, size_t outlen)
 
         snprintf(upath, sizeof upath, "/sys/class/hidraw/%s/device", de->d_name);
         if (!realpath(upath, rpath)) continue;
-        if (!strstr(rpath, ":1.2")) continue;
+        if (!strstr(rpath, ":1.2/")) continue;
 
         if (strlen(de->d_name) + 6 >= outlen) continue;
         snprintf(out, outlen, "/dev/%s", de->d_name);
@@ -254,6 +258,11 @@ static int session(int hfd, int ufd)
         if (buf[0] != REPORT_ID) {
             if (verbose)
                 logmsg("ignoring report id 0x%02X (len %zd)", buf[0], (ssize_t)n);
+            continue;
+        }
+        if (n != BUF_LEN) {
+            logmsg("dropping malformed report (len %zd, expected %d)",
+                   n, BUF_LEN);
             continue;
         }
 
