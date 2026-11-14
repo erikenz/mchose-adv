@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        compiler: [gcc, clang]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and test with ${{ matrix.compiler }}
+        env:
+          CC: ${{ matrix.compiler }}
+          CFLAGS: -O2 -Wall -Wextra -Werror
+        run: |
+          make clean
+          make
+          make test
