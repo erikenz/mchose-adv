@@ -90,6 +90,7 @@ if ! id -nG "$USER" | tr ' ' '\n' | grep -qx input; then
     echo "      access via uaccess, which covers an active local session, but a"
     echo "      systemd user service may not see that ACL. Consider:"
     echo "          sudo usermod -aG input $USER    # then log out and back in"
+    echo "      (note: 'input' membership exposes ALL input devices to your account)"
     echo
 fi
 

@@ -4,3 +4,4 @@ mchose-adv
 pkg/
 src/pkg/
 src/*.tar.gz
+tests/test_keymap

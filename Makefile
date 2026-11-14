@@ -21,13 +21,24 @@ all: mchose-adv
 mchose-adv: src/mchose-adv.c
 	$(CC) $(CFLAGS) -o $@ src/mchose-adv.c
 
-clean:
-	rm -f mchose-adv
+test: tests/test_keymap
+	./tests/test_keymap
 
-install: mchose-adv
+tests/test_keymap: tests/test_keymap.c
+	$(CC) $(CFLAGS) -o $@ tests/test_keymap.c
+
+clean:
+	rm -f mchose-adv tests/test_keymap
+
+# Deliberately no dependency on the binary: build with plain `make` first so
+# that `sudo make install` never compiles anything as root.
+install:
+	@test -x mchose-adv || { echo "run 'make' first (as a normal user), then 'sudo make install'" >&2; exit 1; }
 	install -Dm755 mchose-adv                      $(DESTDIR)$(BINDIR)/mchose-adv
 	install -Dm644 packaging/70-mchose-adv.rules   $(DESTDIR)$(UDEVDIR)/70-mchose-adv.rules
-	install -Dm644 packaging/mchose-adv.service    $(DESTDIR)$(USERUNITDIR)/mchose-adv.service
+	install -d $(DESTDIR)$(USERUNITDIR)
+	sed 's|^ExecStart=/usr/bin/mchose-adv|ExecStart=$(BINDIR)/mchose-adv|' packaging/mchose-adv.service > $(DESTDIR)$(USERUNITDIR)/mchose-adv.service
+	chmod 644 $(DESTDIR)$(USERUNITDIR)/mchose-adv.service
 	install -Dm644 README.md                       $(DESTDIR)$(DOCDIR)/README.md
 	install -Dm644 docs/PROTOCOL.md                $(DESTDIR)$(DOCDIR)/PROTOCOL.md
 	install -Dm644 LICENSE                         $(DESTDIR)$(LICENSEDIR)/LICENSE

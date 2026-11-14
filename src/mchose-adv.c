@@ -40,7 +40,7 @@
  *
  * Build:  make
  * Run:    ./mchose-adv [-v] [--retry SECONDS] [hidraw-device]
- * Docs:   https://github.com/<your-user>/mchose-adv
+ * Docs:   https://github.com/erikenz/mchose-adv
  *
  * SPDX-License-Identifier: MIT
  */

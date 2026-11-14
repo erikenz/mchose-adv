@@ -76,8 +76,7 @@ been tested. Reports welcome — see [`docs/PROTOCOL.md` §6](docs/PROTOCOL.md).
 ## Device access, and the vendor web driver
 
 The shipped udev rule (`packaging/70-mchose-adv.rules`) grants the active local
-user read/write access to **every MCHOSE hidraw node**, which fixes two things
-at once:
+user read/write access to the **hidraw nodes of supported keyboards** (Ace 68 -III `3837:3003` and Ace 60 Pro `41e4:2103`), which fixes two things at once:
 
 1. **This bridge**, which needs read access to USB interface 2.
 2. **The vendor web driver** (M-HUB in Chrome/Edge/Opera), which needs read
@@ -87,13 +86,15 @@ at once:
    one supersedes it and you can remove yours.
 
 ```udev
-SUBSYSTEM=="hidraw", ATTRS{idVendor}=="3837", MODE="0660", GROUP="input", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="3837", ATTRS{idProduct}=="3003", MODE="0660", GROUP="input", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="41e4", ATTRS{idProduct}=="2103", MODE="0660", GROUP="input", TAG+="uaccess"
 ```
+
+Security note: access is restricted to `hidraw` only (raw `SUBSYSTEM=="usb"` access is not needed). Any process running as that user can read raw HID reports and inject keystrokes via `/dev/uinput`. Membership in the `input` group exposes **all** input event devices (`/dev/input/event*`) across your system (a keylogger-grade privilege) — add yourself only if running outside a logind session where `TAG+="uaccess"` cannot grant session ACLs.
 
 The rule sets `MODE`/`GROUP` in addition to `TAG+="uaccess"` so it also works
 for a systemd *user* service, which may not see the active-session ACL that
-`uaccess` relies on. Being in the `input` group is recommended but not required
-for a normal desktop session.
+`uaccess` relies on.
 
 > If you only want the advanced keys and would rather not change device
 > permissions at all, you can skip the udev rule (`./install.sh --no-udev`) as
